@@ -7,6 +7,7 @@ import shutil
 import torch
 from transformers import AutoTokenizer , AutoModelForSequenceClassification,pipeline
 from pydantic import BaseModel
+from video_repr import VideoVerifier,get_transcript
 
 from model import FakeNewsModel
 from prediction import (
@@ -34,6 +35,9 @@ app.add_middleware(
 
 UPLOAD_DIR = 'uploads'
 os.makedirs(UPLOAD_DIR,exist_ok=True)
+
+VIDEO_UPLOAD_DIR  = 'video_uploads'
+os.makedirs(VIDEO_UPLOAD_DIR,exist_ok=True)
 
 @app.on_event('startup')
 def load_model():
@@ -109,6 +113,32 @@ def ai_summarise(data:EvidenceRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500,detail=str(e))
+    
+@app.post('/video_verify')
+async def verify_video(
+        video : UploadFile = File(...)
+):
+    try:
+        video_path = os.path.join(VIDEO_UPLOAD_DIR,video.filename)
+        with open(video_path,'wb') as buffer:
+            shutil.copyfileobj(video.file , buffer)
+        
+        transcript = get_transcript(video_path)
+
+        verifier = VideoVerifier()
+        result = verifier.verify(video_path=video_path,transcript=transcript)
+        
+        verdict = result['analysis']['answers']
+        print('verdict:\n',verdict)
+        return JSONResponse(content={
+            'success' : True,
+            'questions' : result['questions'],
+            'verdict' : verdict
+        })
+    except Exception as e:
+        print("❌ Video verification error:", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
     
 app.mount('/uploads' , StaticFiles(directory = 'uploads'),name = 'uploads')
     
