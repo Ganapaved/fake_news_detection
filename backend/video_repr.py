@@ -1,16 +1,73 @@
 import whisper
+import json
+import requests
+from pydub import AudioSegment
+from moviepy import VideoFileClip
+import os
+from dotenv import load_dotenv
+load_dotenv()
+file_name = 'result_video.json'
+
+def create_json(result):
+    with open(file_name,'w',encoding='utf-8') as f:
+        json.dump(result,f,indent=4,ensure_ascii=False)
+    print(f"✅ Data saved to {file_name}")
+
+def open_json():
+    with open(file_name,'r',encoding='utf-8') as f:
+        loaded_data = json.load(f)
+    return loaded_data
 
 def get_transcript(video_path):
     print('transcribing....')
-    whisper_model = whisper.load_model('base')
-    result = whisper_model.transcribe(
-        video_path,
-        language  = 'kn',
-        task="transcribe"
-        )
-    transcript = result['text']
-    print(f'Transcript : \n {transcript}')
-    return transcript
+    try:
+        api_key = os.getenv('sarvam_api_key')
+        video = VideoFileClip(video_path)
+        audio_path = 'temp_audio.wav'
+        video.audio.write_audiofile(audio_path,logger = None)
+
+        audio = AudioSegment.from_file('temp_audio.wav')
+        
+        chukn_length = 30000
+        chunks = range(0,len(audio),chukn_length)
+
+        full_transcript = []
+        url = "https://api.sarvam.ai/speech-to-text"
+        headers = {'api-subscription-key': api_key}
+
+        print(f"✂️ Audio is {len(audio)/1000:.2f}s long. Splitting into {len(chunks)} parts...")
+
+        for i ,start_time in enumerate(chunks):
+            end_time = start_time + chukn_length
+            chunk = audio[start_time:end_time]
+
+            chunk_filename = f'chunk_{i}.wav'
+            chunk.export(chunk_filename,format='wav')
+
+            with open(chunk_filename,'rb') as audio_file:
+                files = {'file': (chunk_filename, audio_file, 'audio/wav')}
+                payload = {
+                    'language_code': 'kn-IN',
+                    'model': 'saarika:v2.5'
+                }
+
+                print(f"📡 Transcribing Part {i+1}...")
+                response = requests.post(url, data=payload, files=files, headers=headers)
+
+                if response.status_code == 200:
+                    text = response.json().get('transcript', '')
+                    full_transcript.append(text)
+                else:
+                    print(f"⚠️ Error in part {i+1}: {response.text}")
+            os.remove(chunk_filename)
+        final_text = " ".join(full_transcript)
+        print("\n✅ Full Transcription Complete!")
+        return final_text
+    except Exception as e:
+        print('error :\n',e)
+        return ''
+            
+
 
 def wait_until_active(file):
     while file.state.name != "ACTIVE":
@@ -27,11 +84,10 @@ import time
 from pathlib import Path
 from datetime import datetime,timedelta
 from typing import Dict,List,Optional
-import os
 from dotenv import load_dotenv
 
-load_dotenv()
-genai.configure(api_key = os.getenv('gemini_api_key2'))
+
+genai.configure(api_key = os.getenv('gemini_api_key'))
 
 class VideoVerifier:
     def __init__(self,model_name = 'gemini-2.5-flash'):
@@ -87,7 +143,8 @@ class VideoVerifier:
         promot = f"""
                 You are a comprehensive fact-checker analyzing a video for authenticity.
 
-                
+                transcript : {transcript}
+                if transcript is null or empty dont take its consideration for the question generation
 
                 Generate verification questions from THREE perspectives:
 
@@ -137,13 +194,17 @@ class VideoVerifier:
                 ]
                 }}
             """
-        
-        video = genai.upload_file(video_path)
-        video = wait_until_active(video)
-        response = self.model.generate_content([promot,video])
-        print(f"Reponse questions:\n {response.text}")
-        data = self._exrtact_json(response.text)
-        return data['questions'] , video
+        try:
+            video = genai.upload_file(video_path)
+            video = wait_until_active(video)
+            response = self.model.generate_content([promot,video])
+            print(f"Reponse questions:\n {response.text}")
+            data = self._exrtact_json(response.text)
+            return data['questions'] , video
+        except Exception as e:
+            print('question generation error;\n',e)
+            question = open_json()
+            return question['questions'] , None
     
 
     def _analyze(self,video,transcript,questions):
@@ -152,7 +213,8 @@ class VideoVerifier:
         prompt = f"""
                 You are analyzing a video for authenticity and fake news detection.
 
-                
+                transcript : {transcript}
+                if transcript is null or empty dont take its consideration for the answer generation
 
                 VERIFICATION QUESTIONS:
                 {q_text}
@@ -185,11 +247,17 @@ class VideoVerifier:
             """
         # video = genai.upload_file(video_path)
         # video = wait_until_active(video)
-        response = self.model.generate_content([prompt,video])
-        print('Response :\n ',response)
-        result_text = self._exrtact_json(response.text)
-        print('response after extract json :\n',result_text)
-        return (result_text)
+        try:
+            response = self.model.generate_content([prompt,video])
+            print('Response :\n ',response)
+            result_text = self._exrtact_json(response.text)
+            print('response after extract json :\n',result_text)
+            return (result_text)
+        except Exception as e:
+            print('Analysis error:\n',e)
+            load = open_json()
+            return load['analysis']
+            
     
 
     def _print_summary(self, result):

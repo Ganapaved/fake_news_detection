@@ -19,8 +19,8 @@ import {
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-// const API_BASE = 'http://localhost:8000';
-const API_BASE = 'http://192.168.1.121:8000';
+const API_BASE = 'http://localhost:8000';
+// const API_BASE = 'http://192.168.1.121:8000';
 
 function App() {
   const [activeTab, setActiveTab] = useState('news');
@@ -704,21 +704,41 @@ function NewsResultsGrid({ result, imagePreview, aiSummary, generatingAI, onGene
 }
 
 function VideoResultsGrid({ result }) {
-  const verdict = result.verdict?.classification ? result.verdict : null;
-  const answers = Array.isArray(result.answers) ? result.answers :[];
+  const answers = Array.isArray(result.verdict) ? result.verdict :[];
 
-  if (!verdict) {
+  if (!answers.length) {
     return (
       <div className="bg-slate-900 border border-red-500 p-6 rounded-xl">
-        <p className="text-red-400">
-          Invalid response format from server
-        </p>
+        <p className="text-red-400">Invalid video analysis response</p>
         <pre className="text-xs text-slate-400 mt-4">
           {JSON.stringify(result, null, 2)}
         </pre>
       </div>
     );
   }
+
+  const fakeCount = answers.filter(a => a.supports_fake === true).length;
+  let realCount = answers.filter(a => a.supports_fake === false).length;
+  const nullCount = answers.filter(a => a.supports_fake === null).length;
+  realCount = realCount + nullCount -2
+  const classification =
+    fakeCount > realCount ? "FAKE" :
+    realCount > fakeCount ? "REAL" :
+    "UNCERTAIN";
+
+  const confidence = Math.round(
+    (Math.max(fakeCount, realCount) / answers.length) * 100
+  );
+
+  const verdict = {
+    classification,
+    confidence,
+    key_reasons: [
+      `Total checks: ${answers.length}`,
+      `Supports genuine: ${realCount}`,
+      `Supports fake: ${fakeCount}`
+    ]
+  };
 
   return (
     <motion.div
@@ -734,7 +754,7 @@ function VideoResultsGrid({ result }) {
 }
 
 function VideoVerdictCard({ verdict }) {
-  const isFake = verdict.classification === 'FAKE';
+  const isFake = verdict.confidence < 50 ? 'FAKE' : 'REAL';
   const isUncertain = verdict.classification === 'UNCERTAIN';
 
   return (
@@ -805,10 +825,10 @@ function VideoVerdictCard({ verdict }) {
   );
 }
 
-function VideoQuestionsCard({ questions, answers }) {
+function VideoQuestionsCard({ answers }) {
   const [expandedIndex, setExpandedIndex] = useState(null);
 
-  const getPerspective = (q ='') => {
+  const getPerspective = (q='') => {
     if (q.includes("SKEPTIC")) return "SKEPTIC";
     if (q.includes("DEFENDER")) return "DEFENDER";
     if (q.includes("NEUTRAL")) return "NEUTRAL";

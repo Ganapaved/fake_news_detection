@@ -534,6 +534,9 @@ def analyze(title,image_path,model,tokenizer,classifier):
 
     fake_prob = fake_out.item()
     fake_label = 'FAKE' if fake_prob > 0.5 else 'REAL'
+    print("Title:", title)
+    print("Fake Probability:", round(fake_prob,3))
+    print("Prediction:", fake_label)
 
     claim_type = classify_claim(title,classifier)
 
