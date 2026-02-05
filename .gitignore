@@ -1,0 +1,30 @@
+# General
+.DS_Store
+Thumbs.db
+*.log
+
+# Editor directories
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Node
+node_modules/
+dist/
+build/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Application Specific
+model_multimodal/
+fake_news_detection/backend/model_multimodal/

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quick Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f0f0f0;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #10b981;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #059669;
+    }
+    .result {
+      margin-top: 10px;
+      padding: 10px;
+      background: #f9f9f9;
+      border-radius: 4px;
+    }
+    .error {
+      color: #ef4444;
+    }
+    .success {
+      color: #10b981;
+    }
+  </style>
+</head>
+<body>
+  <h1>Backend Connection Test</h1>
+  
+  <div class="test-section">
+    <h2>Test 1: Backend Health Check</h2>
+    <button onclick="testBackend()">Test Backend Connection</button>
+    <div id="backend-result" class="result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 2: Analyze Endpoint</h2>
+    <form id="test-form">
+      <div style="margin-bottom: 10px;">
+        <label>Title: <input type="text" id="test-title" value="Test headline" style="width: 300px; padding: 5px;"></label>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label>Image: <input type="file" id="test-image" accept="image/*"></label>
+      </div>
+      <button type="submit">Test Analysis</button>
+    </form>
+    <div id="analyze-result" class="result"></div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:8000';
+
+    async function testBackend() {
+      const resultDiv = document.getElementById('backend-result');
+      resultDiv.innerHTML = 'Testing...';
+      
+      try {
+        const response = await fetch(`${API_BASE}/`);
+        const data = await response.json();
+        resultDiv.innerHTML = `<span class="success">✓ Backend is running!</span><br>Response: ${JSON.stringify(data)}`;
+      } catch (error) {
+        resultDiv.innerHTML = `<span class="error">✗ Backend connection failed!</span><br>Error: ${error.message}`;
+      }
+    }
+
+    document.getElementById('test-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const resultDiv = document.getElementById('analyze-result');
+      resultDiv.innerHTML = 'Analyzing...';
+      
+      const title = document.getElementById('test-title').value;
+      const imageFile = document.getElementById('test-image').files[0];
+      
+      if (!imageFile) {
+        resultDiv.innerHTML = '<span class="error">Please select an image!</span>';
+        return;
+      }
+      
+      try {
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('image', imageFile);
+        
+        const response = await fetch(`${API_BASE}/analyze`, {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        resultDiv.innerHTML = `<span class="success">✓ Analysis successful!</span><br>
+          Prediction: ${data.prediction}<br>
+          Confidence: ${(data.confidence * 100).toFixed(1)}%<br>
+          Claim Type: ${data.claim_type}`;
+      } catch (error) {
+        resultDiv.innerHTML = `<span class="error">✗ Analysis failed!</span><br>Error: ${error.message}`;
+      }
+    });
+
+    // Auto-test backend on load
+    window.addEventListener('load', testBackend);
+  </script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+.card {
+    background: #0f172a;
+    border-radius: 1rem;
+    border: 1px solid #1e293b;
+    transition: all 0.2s ease;
+}
+
+.card:hover {
+    border-color: #334155;
+}
+
+/* Variants */
+.card-default {
+    background: #0f172a;
+}
+
+.card-elevated {
+    background: #0f172a;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.card-bordered {
+    background: #0f172a;
+    border: 2px solid #334155;
+}
+
+.card-success {
+    background: #0f172a;
+    border: 2px solid #10b981;
+}
+
+.card-danger {
+    background: #0f172a;
+    border: 2px solid #ef4444;
+}
+
+.card-warning {
+    background: #0f172a;
+    border: 2px solid #f59e0b;
+}
+
+/* Padding */
+.card-padding-none {
+    padding: 0;
+}
+
+.card-padding-sm {
+    padding: 1rem;
+}
+
+.card-padding-md {
+    padding: 1.5rem;
+}
+
+.card-padding-lg {
+    padding: 2rem;
+}
+
+/* Card sections */
+.card-header {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #1e293b;
+    margin-bottom: 1rem;
+}
+
+.card-body {
+    flex: 1;
+}
+
+.card-footer {
+    padding-top: 1rem;
+    border-top: 1px solid #1e293b;
+    margin-top: 1rem;
+}
